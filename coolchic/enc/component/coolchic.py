@@ -419,145 +419,140 @@ class CoolChicEncoder(nn.Module):
                 ],
                 dim=0,
             )
-            #up_latents_synth = self.upsampling(decoder_side_latent).contiguous()
-            #print("up_latents_synth:", up_latents_synth.shape, up_latents_synth.stride(), up_latents_synth.is_contiguous())
-            #print(up_latents_synth.is_contiguous(), up_latents_synth.shape, up_latents_synth.stride())
+            # Assignment upsampled latents for synthesis
+            up_latents_synth = self.upsampling(decoder_side_latent).contiguous()
         ##################################################################################################
 
         ###################################### Multi Depth Backward Implementation #######################
-        # if self.depth > 0 and not self.pred_forward:
+        if self.depth > 0 and not self.pred_forward:
 
-        #     contexts = []
+            contexts = []
 
-        #     # Execute upsampling step 
-        #     up_latents_progr = self.upsampling(decoder_side_latent, progr=True)
+            # Execute upsampling step 
+            up_latents_progr = self.upsampling(decoder_side_latent, progr=True)
 
-        #     for i in range(len(decoder_side_latent)):
-        #         if i + 1 < len(decoder_side_latent):
+            for i in range(len(decoder_side_latent)):
+                if i + 1 < len(decoder_side_latent):
 
-        #             # Current stage
-        #             stage = self.param.latent_n_grids - 2 - i
-        #             context_prev_list = []
+                    # Current stage
+                    stage = self.param.latent_n_grids - 2 - i
+                    context_prev_list = []
 
-        #             # Upsampled latents
-        #             up_latents = up_latents_progr[stage]
-        #             depth_limit = min(up_latents.shape[1] - 1, self.depth)
-        #             ctx_pxl_name = f"non_zero_pixel_ctx_index_{depth_limit}_"    
+                    # Upsampled latents
+                    up_latents = up_latents_progr[stage]
+                    depth_limit = min(up_latents.shape[1] - 1, self.depth)
+                    ctx_pxl_name = f"non_zero_pixel_ctx_index_{depth_limit}_"    
 
-        #             # Current latent
-        #             curr_latent = decoder_side_latent[i]
-        #             causal_indices = getattr(self, f"{ctx_pxl_name}0")                 
+                    # Current latent
+                    curr_latent = decoder_side_latent[i]
+                    causal_indices = getattr(self, f"{ctx_pxl_name}0")                 
 
-        #             # Previous context module
-        #             for k in range(depth_limit):
-        #                 prev_latent = up_latents[:, k+1:k+2, :, :]  
-        #                 noncausal_indices = getattr(self, f"{ctx_pxl_name}{k+1}") 
+                    # Previous context module
+                    for k in range(depth_limit):
+                        prev_latent = up_latents[:, k+1:k+2, :, :]  
+                        noncausal_indices = getattr(self, f"{ctx_pxl_name}{k+1}") 
 
-        #                 # Fetch context from previous latents
-        #                 context_prev = _get_neighbor(
-        #                     prev_latent,
-        #                     self.mask_size,
-        #                     noncausal_indices
-        #                 )
+                        # Fetch context from previous latents
+                        context_prev = _get_neighbor(
+                            prev_latent,
+                            self.mask_size,
+                            noncausal_indices
+                        )
 
-        #                 # Append to specific previous context list 
-        #                 context_prev_list.append(context_prev)  
+                        # Append to specific previous context list 
+                        context_prev_list.append(context_prev)  
 
-        #         else:
-        #             # Handle smallest latent (no previous latents)
-        #             curr_latent = decoder_side_latent[i]
-        #             context_prev_list = []
-        #             causal_indices = self.non_zero_pixel_ctx_index_0_0                  
+                else:
+                    # Handle smallest latent (no previous latents)
+                    curr_latent = decoder_side_latent[i]
+                    context_prev_list = []
+                    causal_indices = self.non_zero_pixel_ctx_index_0_0                  
 
-        #         # Current context
-        #         context_curr = _get_neighbor(
-        #                 curr_latent,
-        #                 self.mask_size,
-        #                 causal_indices,
-        #             )
+                # Current context
+                context_curr = _get_neighbor(
+                        curr_latent,
+                        self.mask_size,
+                        causal_indices,
+                    )
                 
-        #         # Concatenate previous contexts 
-        #         if context_prev_list:
-        #             prev_contexts = torch.cat(context_prev_list, dim=1)
-        #             context = torch.cat((prev_contexts, context_curr), dim=1)
-        #         else: 
-        #             context = context_curr
+                # Concatenate previous contexts 
+                if context_prev_list:
+                    prev_contexts = torch.cat(context_prev_list, dim=1)
+                    context = torch.cat((prev_contexts, context_curr), dim=1)
+                else: 
+                    context = context_curr
 
-        #         contexts.append(context)
+                contexts.append(context)
 
-        #     # Assignment upsampled latents fpr synthesis
-        #     up_latents_synth = up_latents_progr[-1].contiguous()
-        #     print("up_latents_synth:", up_latents_synth.shape, up_latents_synth.stride(), up_latents_synth.is_contiguous())
-        #     #print(up_latents_synth.is_contiguous(), up_latents_synth.shape, up_latents_synth.stride())
-
-        #     flat_context = torch.cat(contexts, dim=0)
+            # Assignment upsampled latents for synthesis
+            up_latents_synth = up_latents_progr[-1].contiguous()
+            flat_context = torch.cat(contexts, dim=0)
         ##################################################################################################
 
         ###################################### Multi Depth Forward Implementation ########################
-        # if self.pred_forward:
+        if self.pred_forward:
 
-        #     def resize(frames, stage): 
-        #         """ Spontaneous upsampling depending on stage.
-        #         """
-        #         return self.upsampling(frames, stage)
+            def resize(frames, stage): 
+                """ Spontaneous upsampling depending on stage.
+                """
+                return self.upsampling(frames, stage)
             
-        #     contexts = [] 
-        #     context_prev_list = []
-        #     curr_indices =  self.non_zero_pixel_ctx_index_orig
-        #     curr_latent = decoder_side_latent[0] 
-        #     up_latents = curr_latent
+            contexts = [] 
+            context_prev_list = []
+            curr_indices =  self.non_zero_pixel_ctx_index_orig
+            curr_latent = decoder_side_latent[0] 
+            up_latents = curr_latent
 
-        #     for i in range(len(decoder_side_latent)):
+            for i in range(len(decoder_side_latent)):
 
-        #         if i > 0:
-        #             stage = i - 1
-        #             context_prev_list = []
-        #             consecutive_latents = [up_latents, decoder_side_latent[i]]
-        #             up_latents = resize(consecutive_latents, stage)
-        #             depth_limit = min(up_latents.shape[1] - 1, self.depth)
+                if i > 0:
+                    stage = i - 1
+                    context_prev_list = []
+                    consecutive_latents = [up_latents, decoder_side_latent[i]]
+                    up_latents = resize(consecutive_latents, stage)
+                    depth_limit = min(up_latents.shape[1] - 1, self.depth)
 
-        #             # curr_latent = up_latents[:, 0:1, :, :] !!! Non-causal !!!
-        #             curr_latent = decoder_side_latent[i]
+                    # curr_latent = up_latents[:, 0:1, :, :] !!! Non-causal !!!
+                    curr_latent = decoder_side_latent[i]
 
-        #             ctx_pxl_name = f"non_zero_pixel_ctx_index_{depth_limit}_"
-        #             curr_indices = getattr(self, f"{ctx_pxl_name}0")                    
+                    ctx_pxl_name = f"non_zero_pixel_ctx_index_{depth_limit}_"
+                    curr_indices = getattr(self, f"{ctx_pxl_name}0")                    
 
-        #             for k in range(depth_limit):
-        #                 prev_latent = up_latents[:, k+1:k+2, :, :]  
-        #                 prev_indices = getattr(self, f"{ctx_pxl_name}{k+1}") 
+                    for k in range(depth_limit):
+                        prev_latent = up_latents[:, k+1:k+2, :, :]  
+                        prev_indices = getattr(self, f"{ctx_pxl_name}{k+1}") 
 
-        #                 # Fetch context from previous latents
-        #                 context_prev = _get_neighbor(
-        #                     prev_latent,
-        #                     self.mask_size,
-        #                     prev_indices
-        #                 )
+                        # Fetch context from previous latents
+                        context_prev = _get_neighbor(
+                            prev_latent,
+                            self.mask_size,
+                            prev_indices
+                        )
 
-        #                 # Append to specific previous context list 
-        #                 context_prev_list.append(context_prev)
+                        # Append to specific previous context list 
+                        context_prev_list.append(context_prev)
 
-        #         # Get context for current latent (i loop)
-        #         context_curr = _get_neighbor(
-        #                 curr_latent,
-        #                 self.mask_size,
-        #                 curr_indices,
-        #             )
+                # Get context for current latent (i loop)
+                context_curr = _get_neighbor(
+                        curr_latent,
+                        self.mask_size,
+                        curr_indices,
+                    )
 
-        #         # Concatenate previous contexts 
-        #         if context_prev_list:
-        #             prev_contexts = torch.cat(context_prev_list, dim=1)
-        #             context = torch.cat((prev_contexts, context_curr), dim=1)
-        #         else: 
-        #             context = context_curr
+                # Concatenate previous contexts 
+                if context_prev_list:
+                    prev_contexts = torch.cat(context_prev_list, dim=1)
+                    context = torch.cat((prev_contexts, context_curr), dim=1)
+                else: 
+                    context = context_curr
 
-        #         # Assignment decoder side latents
-        #         up_latents_synth = up_latents
-        #         print("up_latents_synth:", up_latents_synth.shape, up_latents_synth.stride(), up_latents_synth.is_contiguous())
+                # Assignment upsampled latents for synthesis
+                up_latents_synth = up_latents
 
-        #         # Append to list of all contexts
-        #         contexts.append(context)
+                # Append to list of all contexts
+                contexts.append(context)
 
-        #     flat_context = torch.cat(contexts, dim=0)
+            flat_context = torch.cat(contexts, dim=0)
         ##################################################################################################
 
         ###################################### Weighted Multi Depth Backward Implementation ##############
@@ -659,13 +654,7 @@ class CoolChicEncoder(nn.Module):
 
         # Upsampling and synthesis to get the output
         #synthesis_output = self.synthesis(self.upsampling(decoder_side_latent))
-        # up_latents_synth = up_latents_synth
-        # if self.depth == 0 and not self.pred_forward:
-        #     synthesis_output = self.synthesis(self.upsampling(decoder_side_latent))
-        # else:
-        #     synthesis_output = self.synthesis(up_latents_synth)
-
-        synthesis_output = self.synthesis(self.upsampling(decoder_side_latent))
+        synthesis_output = self.synthesis(up_latents_synth)
 
         synthesis_output = synthesis_output
         #print(synthesis_output.is_contiguous(), synthesis_output.shape, synthesis_output.stride)
