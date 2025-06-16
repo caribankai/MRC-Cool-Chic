@@ -91,6 +91,8 @@ def get_coolchic_param_from_args(
         "ups_preconcat_k_size": getattr(
             args, f"ups_preconcat_k_size_{coolchic_enc_name}"
         ),
+        "pred_depth": int(args.pred_depth),
+        "pred_forward": int(args.pred_forward),       
     }
 
     # Add ARM parameters

@@ -313,7 +313,7 @@ def encode_one_frame(
             print("No compilation for torch version anterior to 2.5.0\n")
         else:
             print("Compiling frame encoder!\n")
-            torch._dynamo.reset()
+            torch._dynamo.reset()  # Comment out maybe.
             frame_encoder = torch.compile(
                 frame_encoder,
                 dynamic=False,
@@ -322,6 +322,7 @@ def encode_one_frame(
                 # are not (yet) compatible with compilation. So we can't
                 # capture the full graph for yuv420 frame
                 fullgraph=frame.data.frame_data_type != "yuv420",
+                disable=True
             )
 
         for idx_phase, training_phase in enumerate(
@@ -375,6 +376,11 @@ def encode_one_frame(
             frame_encoder_manager,
         )
 
+        # Save tensors to encoder output
+        torch.save(
+            loop_results.frame_encoder_output.additional_data,
+            f"{prefix_save}results_loop.pt")
+
         # We only care for the best_results.tsv
         # Write results file
         path_results_log = (
@@ -408,6 +414,9 @@ def encode_one_frame(
                 path_best_frame_enc,
                 frame_encoder_manager=frame_encoder_manager,
             )
+
+            # Save the state_dict of the frame_encoder (not used)
+            # torch.save(frame_encoder.state_dict(), f"{prefix_save}state_dict.pt")
 
             frame_encoder.set_to_eval()
             frame_encoder_output = frame_encoder.forward(

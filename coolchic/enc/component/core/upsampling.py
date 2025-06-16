@@ -447,6 +447,7 @@ class Upsampling(nn.Module):
         ups_preconcat_k_size: int,
         n_ups_kernel: int,
         n_ups_preconcat_kernel: int,
+        forward_flag: int
     ):
         """
         Args:
@@ -464,6 +465,9 @@ class Upsampling(nn.Module):
                 all variables.
         """
         super().__init__()
+
+        # Order attribute
+        self.forward_order = forward_flag
 
         # number of kernels for the lower and higher branches
         self.n_ups_kernel = n_ups_kernel
@@ -485,7 +489,7 @@ class Upsampling(nn.Module):
             ]
         )
 
-    def forward(self, decoder_side_latent: List[Tensor]) -> Tensor:
+    def forward(self, decoder_side_latent: List[Tensor], stage=None, progr=False) -> Tensor:
         """Upsample a list of :math:`L` tensors, where the i-th
         tensor has a shape :math:`(B, C_i, \\frac{H}{2^i}, \\frac{W}{2^i})`
         to obtain a dense representation :math:`(B, \\sum_i C_i, H, W)`.
@@ -500,22 +504,40 @@ class Upsampling(nn.Module):
         """
         # The main idea is to merge the channel dimension with the batch dimension
         # so that the same convolution is applied independently on the batch dimension.
-        latent_reversed = list(reversed(decoder_side_latent))
+
+        if not self.forward_order: 
+            latent_reversed = list(reversed(decoder_side_latent))
+        else:
+            latent_reversed = list(decoder_side_latent)
+
         upsampled_latent = latent_reversed[0]  # start from smallest
+        up_latents_progr = []
 
         for idx, target_tensor in enumerate(latent_reversed[1:]):
             # Our goal is to upsample <upsampled_latent> to the same resolution than <target_tensor>
             x = rearrange(upsampled_latent, "b c h w -> (b c) 1 h w")
-            x = self.conv_transpose2ds[idx % self.n_ups_kernel](x)
+
+            if stage is None:   
+                x = self.conv_transpose2ds[idx % self.n_ups_kernel](x)
+            else:
+                x = self.conv_transpose2ds[stage](x)
 
             x = rearrange(x, "(b c) 1 h w -> b c h w", b=upsampled_latent.shape[0])
             # Crop to comply with higher resolution feature maps size before concatenation
             x = x[:, :, : target_tensor.shape[-2], : target_tensor.shape[-1]]
 
-            high_branch = self.conv2ds[idx % self.n_ups_preconcat_kernel](target_tensor)
-            upsampled_latent = torch.cat((high_branch, x), dim=1)
+            if stage is None:
+                high_branch = self.conv2ds[idx % self.n_ups_preconcat_kernel](target_tensor)
+            else:
+                high_branch = self.conv2ds[stage](target_tensor)
 
-        return upsampled_latent
+            upsampled_latent = torch.cat((high_branch, x), dim=1)
+            up_latents_progr.append(upsampled_latent)
+
+        if not progr:
+            return upsampled_latent
+        else:
+            return up_latents_progr
 
     def get_param(self) -> OrderedDict[str, Tensor]:
         """Return **a copy** of the weights and biases inside the module.

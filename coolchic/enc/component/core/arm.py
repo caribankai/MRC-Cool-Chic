@@ -12,6 +12,7 @@ from typing import OrderedDict, Tuple
 import torch
 import torch.nn.functional as F
 from torch import Tensor, index_select, nn
+from enc.component.core.arm_context_shapes import shapes_8, shapes_16, shapes_24, shapes_32
 
 
 class ArmLinear(nn.Module):
@@ -293,7 +294,7 @@ def _laplace_cdf(x: Tensor, expectation: Tensor, scale: Tensor) -> Tensor:
     return 0.5 - 0.5 * (shifted_x).sign() * torch.expm1(-(shifted_x).abs() / scale)
 
 
-def _get_non_zero_pixel_ctx_index(dim_arm: int) -> Tensor:
+def _get_non_zero_pixel_ctx_index(dim_arm: int, depth=0, which_latent=0) -> Tensor:
     """Generate the relative index of the context pixel with respect to the
     actual pixel being decoded.
 
@@ -320,43 +321,15 @@ def _get_non_zero_pixel_ctx_index(dim_arm: int) -> Tensor:
     """
     # fmt: off
     if dim_arm == 8:
-        return torch.tensor(
-            [            13,
-                         22,
-                     30, 31, 32,
-             37, 38, 39, #
-            ]
-        )
+        return shapes_8.get_shape(depth, which_latent) 
 
     elif dim_arm == 16:
-        return torch.tensor(
-            [
-                            13, 14,
-                    20, 21, 22, 23, 24,
-                28, 29, 30, 31, 32, 33,
-                37, 38, 39, #
-            ]
-        )
+        return shapes_16.get_shape(depth, which_latent) 
 
     elif dim_arm == 24:
-        return torch.tensor(
-            [
-                                4 ,
-                        11, 12, 13, 14, 15,
-                    19, 20, 21, 22, 23, 24, 25,
-                    28, 29, 30, 31, 32, 33, 34,
-                36, 37, 38, 39, #
-            ]
-        )
+        return shapes_24.get_shape(depth, which_latent) 
 
     elif dim_arm == 32:
-        return torch.tensor(
-            [
-                        2 , 3 , 4 , 5 ,
-                    10, 11, 12, 13, 14, 15, 16,
-                    19, 20, 21, 22, 23, 24, 25, 26,
-                27, 28, 29, 30, 31, 32, 33, 34, 35,
-                36, 37, 38, 39, #
-            ]
-        )
+        return shapes_32.get_shape(depth, which_latent)
+
     # fmt: on

@@ -82,6 +82,8 @@ class CoolChicEncoderParameter:
     layers_synthesis: List[str]
     n_ft_per_res: List[int]
     dim_arm: int = 24
+    pred_depth: int = 0
+    pred_forward: int = 0
     n_hidden_layers_arm: int = 2
     encoder_gain: int = 16
     ups_k_size: int = 8
@@ -174,10 +176,14 @@ class CoolChicEncoder(nn.Module):
         self.encoder_gains = param.encoder_gain
 
         # Populate the successive grids
+        self.pred_forward = self.param.pred_forward
         self.size_per_latent = []
         self.latent_grids = nn.ParameterList()
         for i in range(self.param.latent_n_grids):
-            h_grid, w_grid = [int(math.ceil(x / (2**i))) for x in self.param.img_size]
+            if self.pred_forward:
+                h_grid, w_grid = [int(math.ceil(x / (2**(self.param.latent_n_grids - 1 - i)))) for x in self.param.img_size]
+            else:
+                h_grid, w_grid = [int(math.ceil(x / (2**i))) for x in self.param.img_size]
             c_grid = self.param.n_ft_per_res[i]
             cur_size = (1, c_grid, h_grid, w_grid)
 
@@ -208,6 +214,7 @@ class CoolChicEncoder(nn.Module):
             # to share the same filter across all latents.
             n_ups_kernel=self.param.latent_n_grids - 1,
             n_ups_preconcat_kernel=self.param.latent_n_grids - 1,
+            forward_flag=self.pred_forward,
         )
         # ===================== Upsampling stuff ===================== #
 
@@ -240,16 +247,23 @@ class CoolChicEncoder(nn.Module):
         # Mask of size 2N + 1 when we have N rows & columns of context.
         self.mask_size = max_mask_size
 
+        ########################### Load Context Shapes into Buffers ############################
+        self.depth = self.param.pred_depth
         # 1D tensor containing the indices of the selected context pixels.
         # register_buffer for automatic device management. We set persistent to false
         # to simply use the "automatically move to device" function, without
         # considering non_zero_pixel_ctx_index as a parameters (i.e. returned
         # by self.parameters())
-        self.register_buffer(
-            "non_zero_pixel_ctx_index",
-            _get_non_zero_pixel_ctx_index(self.param.dim_arm),
-            persistent=False,
-        )
+
+        # Create the several stages for the multi-latent context shapes.
+
+        for depth in range(self.depth + 1):  # includes current depth
+            for which_latent in range(depth + 1):  # each latent up to current depth
+                name = f"non_zero_pixel_ctx_index_{depth}_{which_latent}"
+                value = _get_non_zero_pixel_ctx_index(self.param.dim_arm, depth, which_latent)
+                self.register_buffer(name, value, persistent=False)
+        #########################################################################################
+
 
         self.arm = Arm(self.param.dim_arm, self.param.n_hidden_layers_arm)
         # ===================== ARM related stuff ==================== #
@@ -392,16 +406,239 @@ class CoolChicEncoder(nn.Module):
         # flat_latent: [N, 1] tensor describing N latents
         # flat_context: [N, context_size] tensor describing each latent context
 
-        # Get all the context as a single 2D vector of size [B, context size]
-        flat_context = torch.cat(
-            [
-                _get_neighbor(
-                    spatial_latent_i, self.mask_size, self.non_zero_pixel_ctx_index
-                )
-                for spatial_latent_i in decoder_side_latent
-            ],
-            dim=0,
-        )
+        # Get all the context as a single 2D vector of size [B, context size] (Implementations below)
+
+        ###################################### Original implementation ###################################
+        if self.depth==0 and not self.pred_forward:
+            flat_context = torch.cat(
+                [
+                    _get_neighbor(
+                        spatial_latent_i, self.mask_size, self.non_zero_pixel_ctx_index_0_0
+                    )
+                    for spatial_latent_i in decoder_side_latent
+                ],
+                dim=0,
+            )
+            #up_latents_synth = self.upsampling(decoder_side_latent).contiguous()
+            #print("up_latents_synth:", up_latents_synth.shape, up_latents_synth.stride(), up_latents_synth.is_contiguous())
+            #print(up_latents_synth.is_contiguous(), up_latents_synth.shape, up_latents_synth.stride())
+        ##################################################################################################
+
+        ###################################### Multi Depth Backward Implementation #######################
+        # if self.depth > 0 and not self.pred_forward:
+
+        #     contexts = []
+
+        #     # Execute upsampling step 
+        #     up_latents_progr = self.upsampling(decoder_side_latent, progr=True)
+
+        #     for i in range(len(decoder_side_latent)):
+        #         if i + 1 < len(decoder_side_latent):
+
+        #             # Current stage
+        #             stage = self.param.latent_n_grids - 2 - i
+        #             context_prev_list = []
+
+        #             # Upsampled latents
+        #             up_latents = up_latents_progr[stage]
+        #             depth_limit = min(up_latents.shape[1] - 1, self.depth)
+        #             ctx_pxl_name = f"non_zero_pixel_ctx_index_{depth_limit}_"    
+
+        #             # Current latent
+        #             curr_latent = decoder_side_latent[i]
+        #             causal_indices = getattr(self, f"{ctx_pxl_name}0")                 
+
+        #             # Previous context module
+        #             for k in range(depth_limit):
+        #                 prev_latent = up_latents[:, k+1:k+2, :, :]  
+        #                 noncausal_indices = getattr(self, f"{ctx_pxl_name}{k+1}") 
+
+        #                 # Fetch context from previous latents
+        #                 context_prev = _get_neighbor(
+        #                     prev_latent,
+        #                     self.mask_size,
+        #                     noncausal_indices
+        #                 )
+
+        #                 # Append to specific previous context list 
+        #                 context_prev_list.append(context_prev)  
+
+        #         else:
+        #             # Handle smallest latent (no previous latents)
+        #             curr_latent = decoder_side_latent[i]
+        #             context_prev_list = []
+        #             causal_indices = self.non_zero_pixel_ctx_index_0_0                  
+
+        #         # Current context
+        #         context_curr = _get_neighbor(
+        #                 curr_latent,
+        #                 self.mask_size,
+        #                 causal_indices,
+        #             )
+                
+        #         # Concatenate previous contexts 
+        #         if context_prev_list:
+        #             prev_contexts = torch.cat(context_prev_list, dim=1)
+        #             context = torch.cat((prev_contexts, context_curr), dim=1)
+        #         else: 
+        #             context = context_curr
+
+        #         contexts.append(context)
+
+        #     # Assignment upsampled latents fpr synthesis
+        #     up_latents_synth = up_latents_progr[-1].contiguous()
+        #     print("up_latents_synth:", up_latents_synth.shape, up_latents_synth.stride(), up_latents_synth.is_contiguous())
+        #     #print(up_latents_synth.is_contiguous(), up_latents_synth.shape, up_latents_synth.stride())
+
+        #     flat_context = torch.cat(contexts, dim=0)
+        ##################################################################################################
+
+        ###################################### Multi Depth Forward Implementation ########################
+        # if self.pred_forward:
+
+        #     def resize(frames, stage): 
+        #         """ Spontaneous upsampling depending on stage.
+        #         """
+        #         return self.upsampling(frames, stage)
+            
+        #     contexts = [] 
+        #     context_prev_list = []
+        #     curr_indices =  self.non_zero_pixel_ctx_index_orig
+        #     curr_latent = decoder_side_latent[0] 
+        #     up_latents = curr_latent
+
+        #     for i in range(len(decoder_side_latent)):
+
+        #         if i > 0:
+        #             stage = i - 1
+        #             context_prev_list = []
+        #             consecutive_latents = [up_latents, decoder_side_latent[i]]
+        #             up_latents = resize(consecutive_latents, stage)
+        #             depth_limit = min(up_latents.shape[1] - 1, self.depth)
+
+        #             # curr_latent = up_latents[:, 0:1, :, :] !!! Non-causal !!!
+        #             curr_latent = decoder_side_latent[i]
+
+        #             ctx_pxl_name = f"non_zero_pixel_ctx_index_{depth_limit}_"
+        #             curr_indices = getattr(self, f"{ctx_pxl_name}0")                    
+
+        #             for k in range(depth_limit):
+        #                 prev_latent = up_latents[:, k+1:k+2, :, :]  
+        #                 prev_indices = getattr(self, f"{ctx_pxl_name}{k+1}") 
+
+        #                 # Fetch context from previous latents
+        #                 context_prev = _get_neighbor(
+        #                     prev_latent,
+        #                     self.mask_size,
+        #                     prev_indices
+        #                 )
+
+        #                 # Append to specific previous context list 
+        #                 context_prev_list.append(context_prev)
+
+        #         # Get context for current latent (i loop)
+        #         context_curr = _get_neighbor(
+        #                 curr_latent,
+        #                 self.mask_size,
+        #                 curr_indices,
+        #             )
+
+        #         # Concatenate previous contexts 
+        #         if context_prev_list:
+        #             prev_contexts = torch.cat(context_prev_list, dim=1)
+        #             context = torch.cat((prev_contexts, context_curr), dim=1)
+        #         else: 
+        #             context = context_curr
+
+        #         # Assignment decoder side latents
+        #         up_latents_synth = up_latents
+        #         print("up_latents_synth:", up_latents_synth.shape, up_latents_synth.stride(), up_latents_synth.is_contiguous())
+
+        #         # Append to list of all contexts
+        #         contexts.append(context)
+
+        #     flat_context = torch.cat(contexts, dim=0)
+        ##################################################################################################
+
+        ###################################### Weighted Multi Depth Backward Implementation ##############
+        # def weights(x: int, T: float = 0.6) -> torch.Tensor:
+        #     """Calculate exponentially decaying weights for depth weighting.
+            
+        #     Args:
+        #         x: Number of weights to generate
+        #         T: Temperature parameter for exponential decay
+                
+        #     Returns:
+        #         torch.Tensor: Normalized weights tensor on the correct device
+        #     """
+        #     indices = torch.arange(x, dtype=torch.float32, device=self.latent_grids[0].device)
+        #     unnorm = torch.exp(-indices / T)
+        #     return unnorm / unnorm.sum()
+
+        # if self.depth and not self.pred_forward:
+        #     # Adjusted flat_context calculation with proper resizing
+        #     contexts = [] 
+            
+        #     up_latents_progr = self.upsampling(decoder_side_latent, progr=True)
+
+        #     for i in range(len(decoder_side_latent)):
+        #         if i + 1 < len(decoder_side_latent):
+
+        #             # Current stage
+        #             stage = self.param.latent_n_grids - 2 - i
+
+        #             # Upsampled latents
+        #             up_latents = up_latents_progr[stage]
+        #             depth_limit = min(up_latents.shape[1] - 1, self.depth)
+        #             ctx_pxl_name = f"non_zero_pixel_ctx_index_1_"    
+
+        #             # Current latent
+        #             curr_latent = decoder_side_latent[i]
+        #             causal_indices = getattr(self, f"{ctx_pxl_name}0")   
+
+        #             # Weights and common context
+        #             weight_list = weights(depth_limit)              
+
+        #             # Previous context module
+        #             for k in range(depth_limit):
+        #                 prev_latent = up_latents[:, k+1:k+2, :, :]  
+        #                 noncausal_indices = getattr(self, f"{ctx_pxl_name}{1}") 
+
+        #                 # Fetch context from previous latents
+        #                 context_prev = _get_neighbor(
+        #                     prev_latent,
+        #                     self.mask_size,
+        #                     noncausal_indices
+        #                 )
+
+        #                 if k == 0:
+        #                     prev_contexts = weight_list[k] * context_prev
+        #                 else:
+        #                     prev_contexts += weight_list[k] * context_prev
+
+        #         else:
+        #             # Handle smallest latent (no previous latents)
+        #             curr_latent = decoder_side_latent[i]
+        #             prev_contexts = None
+        #             causal_indices = self.non_zero_pixel_ctx_index_orig                  
+
+        #         # Current context
+        #         context_curr = _get_neighbor(
+        #                 curr_latent,
+        #                 self.mask_size,
+        #                 causal_indices,
+        #             )
+                
+        #         # Concatenate previous contexts 
+        #         if prev_contexts is not None:
+        #             context = torch.cat((prev_contexts, context_curr), dim=1)
+        #         else: 
+        #             context = context_curr
+
+        #         contexts.append(context)
+
+        #     flat_context = torch.cat(contexts, dim=0)
+        ##################################################################################################
 
         # Get all the B latent variables as a single one dimensional vector
         flat_latent = torch.cat(
@@ -421,9 +658,17 @@ class CoolChicEncoder(nn.Module):
         flat_rate = -torch.log2(proba)
 
         # Upsampling and synthesis to get the output
+        #synthesis_output = self.synthesis(self.upsampling(decoder_side_latent))
+        # up_latents_synth = up_latents_synth
+        # if self.depth == 0 and not self.pred_forward:
+        #     synthesis_output = self.synthesis(self.upsampling(decoder_side_latent))
+        # else:
+        #     synthesis_output = self.synthesis(up_latents_synth)
+
         synthesis_output = self.synthesis(self.upsampling(decoder_side_latent))
 
         synthesis_output = synthesis_output
+        #print(synthesis_output.is_contiguous(), synthesis_output.shape, synthesis_output.stride)
 
         additional_data = {}
         if flag_additional_outputs:

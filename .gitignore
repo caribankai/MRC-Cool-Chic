@@ -15,6 +15,7 @@ __pycache__/
 
 test/test-workdir/
 test/out/
+train/train_results/
 venv/
 
 coolchic/CCLIB/

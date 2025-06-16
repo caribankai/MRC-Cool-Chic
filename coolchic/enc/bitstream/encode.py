@@ -405,6 +405,7 @@ def encode_frame(
                         cc_enc.param.latent_n_grids - 1,
                         # frame_encoder.coolchic_encoder.param.n_ups_preconcat_kernel,
                         cc_enc.param.latent_n_grids - 1,
+                        forward_flag=0,  # Adjust to config (import flag to module)
                     )
 
             Q_STEPS = POSSIBLE_Q_STEP.get(cur_module_name)

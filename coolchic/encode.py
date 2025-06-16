@@ -257,6 +257,26 @@ if __name__ == "__main__":
         " Parameterize the residue decoder.",
     )
 
+    # Add prediction depth flag of latents -> training config
+    parser.add(
+        "--pred_depth",
+        type=str,
+        default="0",
+        help="<depth of latent for context predction>, 0 is original and uses only the current latent."
+        "Maximum number is 2 and it will use the two previous latents and the current latent "
+        "for prediction of the current pixel. ",
+    )
+
+    # Add prediction direction for loop -> training config
+    parser.add(
+        "--pred_forward",
+        type=int,
+        default="0",
+        help="<boolean value if predcition is backward (0) or forward (1)>,"
+        "Describes forward of backward loop for latent prediction in upsampling and "
+        "ordering of the latents in the coolchic.",
+    )
+
     args = parser.parse_args()
     print(args)
     print("----------")

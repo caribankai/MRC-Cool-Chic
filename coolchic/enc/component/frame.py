@@ -209,14 +209,14 @@ class FrameEncoder(nn.Module):
         }
 
         if self.frame_type == "I":
-            decoded_image = cc_enc_out["residue"].get("raw_out")
+            decoded_image = cc_enc_out["residue"].get("raw_out").contiguous()
 
         elif self.frame_type in ["P", "B"]:
-            residue = cc_enc_out["residue"].get("raw_out")[:, :3, :, :]
+            residue = cc_enc_out["residue"].get("raw_out")[:, :3, :, :].contiguous()
             alpha = torch.clamp(
-                cc_enc_out["residue"].get("raw_out")[:, 3:4, :, :] + 0.5, 0.0, 1.0
+                cc_enc_out["residue"].get("raw_out")[:, 3:4, :, :].contiguous() + 0.5, 0.0, 1.0
             )
-            flow_1 = cc_enc_out["motion"].get("raw_out")[:, 0:2, :, :]
+            flow_1 = cc_enc_out["motion"].get("raw_out")[:, 0:2, :, :].contiguous()
 
             # Apply each global flow on each reference.
             # Upsample the global flow beforehand to obtain a constant [1, 2, H, W] optical flow.
@@ -229,19 +229,19 @@ class FrameEncoder(nn.Module):
                 pred = warp_fn(shifted_ref[0], flow_1)
 
             elif self.frame_type == "B":
-                flow_2 = cc_enc_out["motion"].get("raw_out")[:, 2:4, :, :]
+                flow_2 = cc_enc_out["motion"].get("raw_out")[:, 2:4, :, :].contiguous()
                 beta = torch.clamp(
-                    cc_enc_out["motion"].get("raw_out")[:, 4:5, :, :] + 0.5, 0.0, 1.0
+                    cc_enc_out["motion"].get("raw_out")[:, 4:5, :, :].contiguous() + 0.5, 0.0, 1.0
                 )
                 pred = beta * warp_fn(shifted_ref[0], flow_1) \
                        + (1 - beta) * warp_fn( shifted_ref[1], flow_2)
 
-            decoded_image = alpha * pred + residue
+            decoded_image = (alpha * pred + residue).contiguous()
 
         # Clamp decoded image & down sample YUV channel if needed
         if not self.training:
             max_dynamic = 2 ** (self.bitdepth) - 1
-            decoded_image = torch.round(decoded_image * max_dynamic) / max_dynamic
+            decoded_image = (torch.round(decoded_image * max_dynamic) / max_dynamic).contiguous()
 
         if self.frame_data_type == "yuv420":
             decoded_image = convert_444_to_420(decoded_image)
