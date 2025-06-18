@@ -20,14 +20,14 @@ def get_shape(depth: int, which_latent: int) -> torch.Tensor:
             [               
                             22,
                         30, 31, 32,
-                37, 38, 39, #
+                    38, 39, #
             ]
             )
     
         if which_latent==1:
             return torch.tensor(
                 [               
-                            40,                             
+                            40, 41,                             
                 ]  
             )
         
