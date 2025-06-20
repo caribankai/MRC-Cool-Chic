@@ -355,7 +355,7 @@ class PresetC3xIntra(Preset):
         self.warmup = Warmup(
             [
                 WarmupPhase(
-                    candidates=5,
+                    candidates=7,
                     training_phase=TrainerPhase(
                         lr=start_lr,
                         max_itr=400,
@@ -371,7 +371,7 @@ class PresetC3xIntra(Preset):
                     )
                 ),
                 WarmupPhase(
-                    candidates=2,
+                    candidates=3,
                     training_phase=TrainerPhase(
                         lr=start_lr,
                         max_itr=400,

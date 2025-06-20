@@ -17,6 +17,7 @@ test/test-workdir/
 test/out/
 train/train_results/
 venv/
+eval/Evaluations/
 
 coolchic/CCLIB/
 coolchic.egg-info/

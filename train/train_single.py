@@ -4,11 +4,11 @@ import sys
 
 # === Parameters ===
 image_path = "images/kodak_crop/kodim19.png"
-arm_residue = "8,2"
+arm_residue = "24,2"
 pred_depth = 2
 pred_forward = 0
 lmbda = 0.001
-trial_folder = "trial_0" 
+trial_folder = "trial_5" 
 
 # === Lambda dictionary for QP mapping ===
 lambda_dict = {

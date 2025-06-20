@@ -8,16 +8,16 @@ from collections import defaultdict
 
 ################################ Select Config #####################################
 
-anchor = "Original"
-method = "3_OursCausalMulti"
+anchor = "Depth_0"
+method = "Depth_1"
 
-context_plot = 32
+context_plot = 24
 type = "kodak"
-avg_all_context_sizes = False
+avg_all_context_sizes = False # Only available if all context sizes available
 
 #####################################################################################
 
-root = Path("Evaluations")
+root = Path("eval/Evaluations")
 
 # Number of quality points
 num_qps = 5
@@ -37,8 +37,8 @@ for version in root.iterdir():  # Versions: Original, Ours, etc.
     contexts = {
                 # "8_context_pxls": {},
                 # "16_context_pxls": {}, 
-                #"24_context_pxls": {}, 
-                "32_context_pxls": {}
+                "24_context_pxls": {}, 
+                #"32_context_pxls": {}
             }
 
     for context in version.iterdir():  # Context Pixels
@@ -203,7 +203,7 @@ def plot_curves(curves, xlabel="bpp", ylabel="PSNR in dB", title="Plot"):
 
 # MLIC++ ###################################################
 
-with open("utilities/mlicplusplus_mse.json", "r", encoding="utf-8") as f:
+with open("eval/benchmarks/mlicplusplus_mse.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 bpp_mlicpp = data["bpp"]
@@ -213,7 +213,7 @@ curve_mlicpp = Curve(bpp_mlicpp, psnr_mlicpp, label="MLIC++", benchmark=True)
 
 # VTM NEW ########################################
 
-with open("utilities/vtm_workdir_444/vtm_results.json", "r", encoding="utf-8") as f:
+with open("eval/benchmarks/vtm_results.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 bpp_vtm2310 = data["bpp"]

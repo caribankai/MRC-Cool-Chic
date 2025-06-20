@@ -322,7 +322,7 @@ def encode_one_frame(
                 # are not (yet) compatible with compilation. So we can't
                 # capture the full graph for yuv420 frame
                 fullgraph=frame.data.frame_data_type != "yuv420",
-                disable=True
+                disable=False
             )
 
         for idx_phase, training_phase in enumerate(
