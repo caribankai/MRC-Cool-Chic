@@ -53,7 +53,7 @@ for version_name, version_path in version_paths.items():
                 count += 1  # 🔁 Increase count at each trial
 
                 ############ Put the idx you desire here (from console output max value) and it returns the name and qp of the image ######
-                idx = 75
+                idx = 115
                 if count == idx + 1:
                 #################################################
                     print(f"Result found at: image: {image_name}, qp: {qp_name}, trial: {trial_dir.name}")
@@ -85,7 +85,7 @@ loss_method = np.array(loss_big[1])
 if len(loss_anchor) != len(loss_method):
     raise ValueError(f"Mismatch in loss lengths: {len(loss_anchor)} vs {len(loss_method)}")
 
-loss_ratio = loss_method / loss_anchor
+loss_ratio = loss_anchor / loss_method
 sorted_indices = np.argsort(loss_ratio)[::-1]  # Descending
 
 # Top 2
