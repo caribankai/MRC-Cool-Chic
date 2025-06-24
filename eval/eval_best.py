@@ -91,4 +91,4 @@ sorted_indices = np.argsort(loss_ratio)[::-1]  # Descending
 # Top 2
 top_idx = sorted_indices[0]
 
-print(f"📍 Max loss ratio (method / anchor): {loss_ratio[top_idx]:.4f} at index {top_idx}")
+print(f"📍 Max loss ratio (anchor / method): {loss_ratio[top_idx]:.4f} at index {top_idx}")
