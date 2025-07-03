@@ -18,20 +18,20 @@ def get_shape(depth: int, which_latent: int) -> torch.Tensor:
     elif depth==1:
         if which_latent==0:
             return torch.tensor(
-            [       
+            [
                                 13, 
-                        20, 21, 22, 23, 24,      
-                        29, 30, 31, 32, 33, 34, 
+                        20, 21, 22, 23, 24,
+                        29, 30, 31, 32, 33, 
                     37, 38, 39, #
             ]
             )
     
         if which_latent==1:
             return torch.tensor(
-                [               
+                [                        
                             30, 31, 32,
-                            39, 40, 41,
-                            48, 49, 50,                                             
+                            39, 40, 41, 42,
+                            48, 49, 50,                         
                 ] 
             )
         
@@ -39,26 +39,25 @@ def get_shape(depth: int, which_latent: int) -> torch.Tensor:
     elif depth==2:
         if which_latent==0:
             return torch.tensor(
-            [       
+            [
                                 13, 
-                        20, 21, 22, 23, 24,      
-                        29, 30, 31, 32, 33, 34, 
+                        20, 21, 22, 23, 24,
+                        29, 30, 31, 32, 33, 
                     37, 38, 39, #
             ]
             ) 
         if which_latent==1:
             return torch.tensor(
-                [               
-                                31, 
+                [                        
+                            30, 31, 32,
                             39, 40, 41,
-                                49,                                                  
+                            48, 49, 50,                         
                 ]  
             )       
         if which_latent==2:
             return torch.tensor(
-                [               
-                            39, 40, 41,
-                                49,                                                  
+                [                                 
+                                40,
                 ] 
             )
         
@@ -66,32 +65,31 @@ def get_shape(depth: int, which_latent: int) -> torch.Tensor:
     elif depth==3:
         if which_latent==0:
             return torch.tensor(
-            [       
+            [
                                 13, 
-                        20, 21, 22, 23, 24,      
+                        20, 21, 22, 23, 24,
                         29, 30, 31, 32, 33, 
                     37, 38, 39, #
             ]
             ) 
         if which_latent==1:
             return torch.tensor(
-                [               
-                                31, 
+                [                        
+                                31, 32,
                             39, 40, 41,
-                                49,                                                  
-                ]   
+                            48, 49, 50,                         
+                ]      
             )       
         if which_latent==2:
             return torch.tensor(
-                [               
-                            39, 40, 41,
-                                49,                                                  
+                [                                 
+                                40,
                 ]    
             )      
         if which_latent==3:
             return torch.tensor(
-                [           
-                                40,                                                              
+                [                                 
+                                40,
                 ]    
             )
         
@@ -99,26 +97,25 @@ def get_shape(depth: int, which_latent: int) -> torch.Tensor:
     elif depth==4:
         if which_latent==0:
             return torch.tensor(
-            [       
+            [
                                 13, 
-                            21, 22, 23, 24,      
-                        29, 30, 31, 32, 33,
+                        20, 21, 22, 23, 24,
+                        29, 30, 31, 32, 33, 
                     37, 38, 39, #
             ]
             )
         if which_latent==1:
             return torch.tensor(
-                [               
+                [                        
                                 31, 
                             39, 40, 41,
-                                49,                                                  
-                ]   
+                            48, 49, 50,                         
+                ]     
             )       
         if which_latent==2:
             return torch.tensor(
-                [               
-                            39, 40, 41,
-                                49,                                                  
+                [                                 
+                                40,
                 ]    
             )   
         if which_latent==3:
@@ -138,26 +135,25 @@ def get_shape(depth: int, which_latent: int) -> torch.Tensor:
     elif depth==5:
         if which_latent==0:
             return torch.tensor(
-            [       
+            [
                                 13, 
-                            21, 22, 23,     
-                        29, 30, 31, 32, 33,
+                        20, 21, 22, 23, 24,
+                        29, 30, 31, 32, 33, 
                     37, 38, 39, #
             ]
             )
         if which_latent==1:
             return torch.tensor(
-                [               
+                [                        
                                 31, 
                             39, 40, 41,
-                                49,                                                  
-                ]   
+                                49, 50,                         
+                ]    
             )       
         if which_latent==2:
             return torch.tensor(
-                [               
-                            39, 40, 41,
-                                49,                                                  
+                [                                 
+                                40,
                 ]    
             )   
         if which_latent==3:
@@ -183,27 +179,26 @@ def get_shape(depth: int, which_latent: int) -> torch.Tensor:
     elif depth==6:
         if which_latent==0:
             return torch.tensor(
-            [       
+            [
                                 13, 
-                            21, 22, 23,      
-                        29, 30, 31, 32, 33,
-                        38, 39, #
+                        20, 21, 22, 23, 24,
+                        29, 30, 31, 32, 33, 
+                    37, 38, 39, #
             ]
             )
         if which_latent==1:
             return torch.tensor(
-                [               
+                [                        
                                 31, 
                             39, 40, 41,
-                                49,                                                  
-                ]   
+                                49,                      
+                ]     
             )       
         if which_latent==2:
             return torch.tensor(
-                [               
-                            39, 40, 41,
-                                49,                                                  
-                ]    
+                [                                 
+                                40,
+                ]     
             )   
         if which_latent==3:
             return torch.tensor(
