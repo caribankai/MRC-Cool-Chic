@@ -14,14 +14,14 @@ base_path = Path.home() / "OneDrive - TUM" / "Multi-Latent_Pred_for_INCs"
 # Evaluation 1 config (anchor)
 depth_1 = 0  # 0 - 6 (0 is the original)
 context_1 = 32 
-kodak_im_1 = "24"  # 01 - 24
+kodak_im_1 = "08"  # 01 - 24
 qp_1 = 0 # 0 - 4
 trial_1 = ""  # Corresponds to original
 
 # Evaluation 2 config (method)
 depth_2 = 6
 context_2 = 32
-kodak_im_2 = "24"
+kodak_im_2 = "08"
 qp_2 = 0
 trial_2 = "Trial_4"  # Corresponds to original
 

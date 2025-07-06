@@ -9,11 +9,21 @@ import json
 Trial = "Trial_4"
 
 anchor = "Depth_0"
-method = "Depth_6"
+method = "Depth_4"
 
 context_plot = 32
 type = "kodak"
 avg_all_context_sizes = False  # Only available if all context sizes available
+
+#####################################################################################
+
+output_dir = Path("eval/performances")
+output_dir.mkdir(parents=True, exist_ok=True)
+
+filename_anchor = f"rd_{Trial}_{anchor}_{context_plot}_{type}.json"
+filename_method = f"rd_{Trial}_{method}_{context_plot}_{type}.json"
+file_path_anchor = output_dir / filename_anchor
+file_path_method = output_dir / filename_method
 
 #####################################################################################
 
@@ -35,6 +45,13 @@ version_paths = {
 }
 
 for version_name, version_path in version_paths.items():
+
+    if version_name == anchor and file_path_anchor.exists():
+        print(f"✅ Skipping {anchor} evaluation, JSON already exists: {file_path_anchor}")
+        continue
+    if version_name == method and file_path_method.exists():
+        print(f"✅ Skipping {method} evaluation, JSON already exists: {file_path_method}")
+        continue
     if not version_path.exists():
         print(f"⚠️ Warning: {version_name} path does not exist: {version_path}")
         continue
@@ -120,6 +137,33 @@ for version_name, version_path in version_paths.items():
 
     versions[version_name] = contexts
 
+########################################################### Make json file ##########################################################
+
+# Write JSONs only for the versions that were evaluated
+for version_name, file_path in [(anchor, file_path_anchor), (method, file_path_method)]:
+    if file_path.exists():
+        print(f"✅ Skipping JSON write for {version_name}, already exists: {file_path}")
+        continue
+
+    version_data = versions.get(version_name, {})
+    context_data = version_data.get(f"{context_plot}_context_pxls", {})
+    image_data = context_data.get(type, {})
+
+    if not image_data:
+        print(f"⚠️ No data for {version_name} at context {context_plot} and type {type}")
+        continue
+
+    bpp = image_data.get("rate_bpp", [])
+    psnr = image_data.get("psnr", [])
+
+    json_data = {
+        "psnr": list(np.round(psnr, 4)),
+        "bpp": list(np.round(bpp, 4)),
+    }
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, indent=2)
+        print(f"✅ Saved: {file_path}")
 
 ########################################################### PLOTTING Module ##########################################################
 
@@ -168,7 +212,22 @@ def plot_curves(curves, xlabel="bpp", ylabel="PSNR in dB", title="Plot"):
     plt.tight_layout()
     plt.show()
 
-########################################################### Import VTM results #######################################################
+#################################### Anchor and Method results ##############################
+
+# Import anchor + method data from JSON
+with open(file_path_anchor, "r", encoding="utf-8") as f:
+    data = json.load(f)
+bpp_anchor = data["bpp"]
+psnr_anchor = data["psnr"]
+curve_anchor = Curve(bpp_anchor, psnr_anchor, label="Cool-Chic")
+
+with open(file_path_method, "r", encoding="utf-8") as f:
+    data = json.load(f)
+bpp_method = data["bpp"]
+psnr_method = data["psnr"]
+curve_method = Curve(bpp_method, psnr_method, label="Cool-Chic (Ours)")
+
+###################################### Benchmark results ##############################
 
 with open("eval/benchmarks/mlicplusplus_mse.json", "r", encoding="utf-8") as f:
     data = json.load(f)
@@ -182,79 +241,20 @@ bpp_vtm2310 = data["bpp"]
 psnr_vtm2310 = data["psnr"]
 curve_vtm2310 = Curve(bpp_vtm2310, psnr_vtm2310, label="VTM 23.10", benchmark=True)
 
-
 ############################################################################################################
 
-cntxt_str = f"{context_plot}_context_pxls"
-
-if avg_all_context_sizes: 
-    latent_bpp_anchor = np.zeros_like(np.array(versions[anchor][cntxt_str][type]["latent_bpp"]))
-    rate_bpp_anchor = np.zeros_like(np.array(versions[anchor][cntxt_str][type]["rate_bpp"]))
-
-    latent_bpp_method = np.zeros_like(np.array(versions[method][cntxt_str][type]["latent_bpp"]))
-    rate_bpp_method = np.zeros_like(np.array(versions[method][cntxt_str][type]["rate_bpp"]))
-
-    psnr_anchor = np.zeros_like(np.array(versions[anchor][cntxt_str][type]["psnr"]))
-    psnr_method = np.zeros_like(np.array(versions[method][cntxt_str][type]["psnr"]))
-
-    for i in [8, 16, 24, 32]:
-        cntxt_str = f"{i}_context_pxls"
-
-        latent_bpp_anchor += np.array(versions[anchor][cntxt_str][type]["latent_bpp"])
-        rate_bpp_anchor += np.array(versions[anchor][cntxt_str][type]["rate_bpp"])
-
-        latent_bpp_method += np.array(versions[method][cntxt_str][type]["latent_bpp"])
-        rate_bpp_method += np.array(versions[method][cntxt_str][type]["rate_bpp"])
-
-        psnr_anchor += np.array(versions[anchor][cntxt_str][type]["psnr"])
-        psnr_method += np.array(versions[method][cntxt_str][type]["psnr"])
-
-    latent_bpp_anchor /= 4
-    rate_bpp_anchor /= 4
-    latent_bpp_method /= 4
-    rate_bpp_method /= 4
-    psnr_anchor /= 4
-    psnr_method /= 4
-
-    curve_latent_anchor = Curve(latent_bpp_anchor, psnr_anchor, label=anchor)
-    curve_rate_anchor = Curve(rate_bpp_anchor, psnr_anchor, label=anchor)
-
-    curve_latent_method = Curve(latent_bpp_method, psnr_method, label=method)
-    curve_rate_method = Curve(rate_bpp_method, psnr_method, label=method)
-
-    title_plot = "Avg. over all context pixels sizes, " + type
-
-else:
-    latent_bpp_anchor = np.array(versions[anchor][cntxt_str][type]["latent_bpp"])
-    rate_bpp_anchor = np.array(versions[anchor][cntxt_str][type]["rate_bpp"])
-
-    latent_bpp_method = np.array(versions[method][cntxt_str][type]["latent_bpp"])
-    rate_bpp_method = np.array(versions[method][cntxt_str][type]["rate_bpp"])
-
-    psnr_anchor = np.array(versions[anchor][cntxt_str][type]["psnr"])
-    psnr_method = np.array(versions[method][cntxt_str][type]["psnr"])
-
-    curve_latent_anchor = Curve(latent_bpp_anchor, psnr_anchor, label=anchor + " latent bpp")
-    curve_rate_anchor = Curve(rate_bpp_anchor, psnr_anchor, label="Cool-Chic")
-
-    curve_latent_method = Curve(latent_bpp_method, psnr_method, label=method + " latent bpp")
-    curve_rate_method = Curve(rate_bpp_method, psnr_method, label="Cool-Chic (Ours)")
-
-    title_plot = str(context_plot) + " context pxls, " + type
-
-########## Plotting and BD rate 
-
-curves = [curve_vtm2310, curve_mlicpp, curve_rate_anchor, curve_rate_method]
+curves = [curve_vtm2310, curve_mlicpp, curve_anchor, curve_method]
 
 import bjontegaard as bd
 
-bd_rate = bd.bd_rate(rate_bpp_anchor, psnr_anchor, rate_bpp_method, psnr_method, method='akima')
-bd_psnr = bd.bd_psnr(rate_bpp_anchor, psnr_anchor, rate_bpp_method, psnr_method, method='akima')
+bd_rate = bd.bd_rate(bpp_anchor, psnr_anchor, bpp_method, psnr_method, method='akima')
+bd_psnr = bd.bd_psnr(bpp_anchor, psnr_anchor, bpp_method, psnr_method, method='akima')
 
 print(f"BD-Rate: {bd_rate:.4f} %")
 print(f"BD-PSNR: {bd_psnr:.4f} dB")
 
 title_bd = f"{method} vs. Cool-Chic BD-Rate: {bd_rate:.2f} %, BD-PSNR: {bd_psnr:.2f} dB"
+title_plot = str(context_plot) + " context pxls, " + type
 title = title_plot + "\n" + title_bd
 
 plot_curves(curves, title=title)
