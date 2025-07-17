@@ -9,7 +9,7 @@ import json
 Trial = "Trial_4"
 
 anchor = "Depth_0"
-method = "Depth_4"
+method = "Depth_6"
 
 context_plot = 32
 type = "kodak"
@@ -22,7 +22,7 @@ output_dir.mkdir(parents=True, exist_ok=True)
 
 filename_anchor = f"rd_{Trial}_{anchor}_{context_plot}_{type}.json"
 filename_method = f"rd_{Trial}_{method}_{context_plot}_{type}.json"
-file_path_anchor = output_dir / filename_anchor
+file_path_anchor = Path("eval/benchmarks") / filename_anchor
 file_path_method = output_dir / filename_method
 
 #####################################################################################
@@ -167,6 +167,14 @@ for version_name, file_path in [(anchor, file_path_anchor), (method, file_path_m
 
 ########################################################### PLOTTING Module ##########################################################
 
+import matplotlib.pyplot as plt
+import itertools
+import os
+import os
+import json
+import matplotlib.pyplot as plt
+import itertools
+
 class Curve:
     def __init__(self, bpp, psnr, label, benchmark=False):
         self.bpp = bpp
@@ -176,45 +184,56 @@ class Curve:
         self.marker = None
         self.benchmark = benchmark
 
-def plot_curves(curves, xlabel="bpp", ylabel="PSNR in dB", title="Plot"):
-    plt.figure(figsize=(8, 6))
+def plot_curves(curves, xlabel="Rate [bpp]", ylabel="PSNR [dB]", title="Plot"):
+    plt.figure(figsize=(8.5, 5.5)) 
 
-    custom_colors = [
-        "#d62728", "#e377c2", "#ff7f0e", "#1f77b4", "#2ca02c",
-        "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
-        "#bcbd22", "#17becf"
-    ]
-    plt.rcParams['axes.prop_cycle'] = plt.cycler(color=custom_colors)
+    # Set color order: blue, red, pink, orange
+    custom_colors = ['#d62728', '#1f77b4', '#ff7f0e', '#e377c2']
+    marker_cycle = ['o', 's', '^', 'D']
+    colors = iter(custom_colors)
+    markers = iter(marker_cycle)
 
-    marker_cycle = ['o', 's', '^', 'D', 'v', 'p', '*', 'h', 'x', '+']
-    colors = itertools.cycle(custom_colors)
-    markers = itertools.cycle(marker_cycle)
-
+    # Assign colors and markers in the desired order
     for curve in curves:
         curve.color = next(colors)
         curve.marker = next(markers)
-        plt.plot(
+
+    plt.grid(True, zorder=0, alpha=0.3)
+
+    handles_dict = {}
+
+    for curve in curves:
+        handle, = plt.plot(
             curve.bpp,
             curve.psnr,
             label=curve.label,
             color=curve.color,
-            marker=None if curve.benchmark else curve.marker,
-            linewidth=2,
-            alpha=0.7
+            marker=curve.marker,
+            linewidth=2.5 if not curve.benchmark else 2,
+            alpha=0.85 if not curve.benchmark else 1,
+            markersize=7,
+            zorder=2 if not curve.benchmark else 1
         )
+        handles_dict[curve.label] = handle
 
-    plt.xlabel(xlabel, fontsize=15)
-    plt.ylabel(ylabel, fontsize=15)
-    plt.xticks(fontsize=13)
-    plt.yticks(fontsize=13)
-    plt.legend(fontsize=15)
-    plt.grid(True)
+    plt.xlabel(xlabel, fontsize=16)
+    plt.ylabel(ylabel, fontsize=16)
+    plt.xticks(fontsize=15)
+    plt.yticks(fontsize=15)
+
+    # Specify legend order
+    legend_order = ["MLIC++", "Ours", "Cool-Chic", "VTM 23.10"]
+    handles = [handles_dict[label] for label in legend_order]
+    plt.legend(handles, legend_order, fontsize=16)
+
     plt.tight_layout()
+    output_path = "eval/Exported_Images/rd_plot_32_depth6_trial4.png"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path, dpi=250, bbox_inches='tight')
     plt.show()
 
 #################################### Anchor and Method results ##############################
 
-# Import anchor + method data from JSON
 with open(file_path_anchor, "r", encoding="utf-8") as f:
     data = json.load(f)
 bpp_anchor = data["bpp"]
@@ -225,7 +244,7 @@ with open(file_path_method, "r", encoding="utf-8") as f:
     data = json.load(f)
 bpp_method = data["bpp"]
 psnr_method = data["psnr"]
-curve_method = Curve(bpp_method, psnr_method, label="Cool-Chic (Ours)")
+curve_method = Curve(bpp_method, psnr_method, label="Ours")
 
 ###################################### Benchmark results ##############################
 
@@ -243,7 +262,8 @@ curve_vtm2310 = Curve(bpp_vtm2310, psnr_vtm2310, label="VTM 23.10", benchmark=Tr
 
 ############################################################################################################
 
-curves = [curve_vtm2310, curve_mlicpp, curve_anchor, curve_method]
+# Order: MLIC++ (blue), Ours (red), Cool-Chic (pink), VTM 23.10 (orange)
+curves = [curve_mlicpp, curve_anchor, curve_method, curve_vtm2310]
 
 import bjontegaard as bd
 
@@ -257,4 +277,5 @@ title_bd = f"{method} vs. Cool-Chic BD-Rate: {bd_rate:.2f} %, BD-PSNR: {bd_psnr:
 title_plot = str(context_plot) + " context pxls, " + type
 title = title_plot + "\n" + title_bd
 
-plot_curves(curves, title=title)
+
+plot_curves(curves)

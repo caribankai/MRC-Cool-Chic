@@ -15,14 +15,14 @@ base_path = Path.home() / "OneDrive - TUM" / "Multi-Latent_Pred_for_INCs"
 depth_1 = 0  # 0 - 6 (0 is the original)
 context_1 = 32 
 kodak_im_1 = "19"  # 01 - 24
-qp_1 = 1 # 0 - 4
+qp_1 = 3 # 0 - 4
 trial_1 = ""  # Corresponds to original
 
 # Evaluation 2 config (method)
 depth_2 = 6
 context_2 = 32
-kodak_im_2 = "19"
-qp_2 = 1
+kodak_im_2 = "08"
+qp_2 = 0
 trial_2 = "Trial_4"  # Corresponds to original
 
 ### Uncomment desired key
@@ -72,46 +72,65 @@ metrics_2 = extract_metrics(os.path.join(path_2, '0000-results_best.tsv'))
 print("Upper (anchor):", metrics_1)
 print("Lower (method):", metrics_2)
 
+max_display = 3
+if max_display:
+    num_images = max_display
+else:
+    num_images = len(results_dict_1[key])
 
-num_images = len(results_dict_1[key])
+single_subplot = True  # <-- Set this flag to True if you only want a single subplot row
 
-fig, axes = plt.subplots(2, num_images, figsize=(4 * num_images, 8))
+num_rows = 1 if single_subplot else 2
+fig, axes = plt.subplots(num_rows, num_images, figsize=(4 * num_images, 4 * num_rows))
+
+# Ensure axes is always 2D for consistent indexing
+if num_images == 1:
+    axes = [[axes]] if single_subplot else [[axes], [axes]]
+elif single_subplot:
+    axes = [axes]  # shape: [1][i]
+else:
+    axes = axes  # shape: [2][i]
 
 def normalize(arr):
-    return 2 * (arr - arr.min())/ (arr.max() - arr.min() + 1e-3) - 1
+    return 2 * (arr - arr.min()) / (arr.max() - arr.min() + 1e-3) - 1
 
 ################ Plot ######################
+
 for i, tensor in enumerate(results_dict_1[key]):
+    if i >= max_display:
+        break
     print(tensor.shape)
     img = tensor.cpu().detach().numpy()[0, 0, :, :]
     h, w = img.shape
-    im = axes[0, i].matshow(img, cmap=color_scheme)
-    axes[0, i].annotate(
+    im = axes[0][i].matshow(img, cmap=color_scheme)
+    axes[0][i].annotate(
         f"{h}x{w}",
         xy=(0.5, 1.02),
         xycoords='axes fraction',
         ha='center', va='bottom',
-        fontsize=13
+        fontsize=15
     )
-    axes[0, i].axis('off')
-    fig.colorbar(im, ax=axes[0, i])
+    axes[0][i].axis('off')
+    #fig.colorbar(im, ax=axes[0][i])
 
-for i, tensor in enumerate(results_dict_2[key]):
-    img = tensor.cpu().detach().numpy()[0, 0, :, :]
-    im = axes[1, i].matshow(img, cmap=color_scheme)
-    axes[1, i].axis('off')
-    fig.colorbar(im, ax=axes[1, i])
+if not single_subplot:
+    for i, tensor in enumerate(results_dict_2[key]):
+        img = tensor.cpu().detach().numpy()[0, 0, :, :]
+        im = axes[1][i].matshow(img, cmap=color_scheme)
+        axes[1][i].axis('off')
+        fig.colorbar(im, ax=axes[1][i])
 
 # Automatically adjust layout
 fig.tight_layout()
 plt.tight_layout()
+fig.subplots_adjust(left=0.0, right=0.7, top=0.92, bottom=0.01, wspace=0, hspace=0)
+
 plt.show()
 
-
-output_path = Path("eval") / "Exported_Images" / f"{key}_compare_orig_trial4.png"
+output_path = Path("eval") / "Exported_Images" / f"{key}_compare.png"
 
 # Create the directory if it doesn't exist
 output_path.parent.mkdir(parents=True, exist_ok=True)
 
 # Save the figure
-fig.savefig(output_path, dpi=400, bbox_inches='tight')
+fig.savefig(output_path, dpi=300, bbox_inches='tight')
