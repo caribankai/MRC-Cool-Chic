@@ -3,7 +3,7 @@ images/
 venv/
 *.pyc
 *.pt
-*.png
+# *.png
 *.out
 
 docs/build/
